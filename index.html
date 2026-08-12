@@ -559,14 +559,16 @@ const CONFIG = {
   ],
 
   // 📸 Add a "photo" path to use a real picture; leave it out to fall back to the emoji tile
+  // (These defaults are only a preview fallback — real uploaded photos come from
+  // Firestore via applyCardData() and overwrite these arrays completely.)
   memories: [
-    {photo:"assets/memory1.jpg", emoji:"🥰", caption:"memory 1"},
+    {emoji:"🥰", caption:"memory 1"},
     {emoji:"😘", caption:"memory 2"},
     {emoji:"😜", caption:"memory 3"}
   ],
 
   journey: [
-    {photo:"assets/memory1.jpg", emoji:"🤗", caption:"The day everything changed ❤️"},
+    {emoji:"🤗", caption:"The day everything changed ❤️"},
     {emoji:"🌊", caption:"Sun, sand, and your smile 🌊"},
     {emoji:"☕", caption:"Hours just disappeared here ☕"}
   ],
@@ -886,8 +888,15 @@ function playSlideshow(){
   frames.forEach((f,i)=>{
     const s = document.createElement('div');
     s.className='slide';
-    s.style.background='linear-gradient(135deg,#ff85a5,#c81e42)';
-    s.innerText = f.emoji;
+    if(f.photo){
+      // Real uploaded photo — show the image itself, not an emoji.
+      s.style.backgroundImage = `url('${f.photo}')`;
+      s.style.backgroundSize = 'cover';
+      s.style.backgroundPosition = 'center';
+    } else {
+      s.style.background='linear-gradient(135deg,#ff85a5,#c81e42)';
+      s.innerText = f.emoji || '';
+    }
     area.appendChild(s);
   });
   el('slideshow').classList.add('active');
@@ -929,8 +938,24 @@ function applyCardData(d){
     if(arr.length) CONFIG.jarMessages = arr;
   }
   if(Array.isArray(d.mainPhoto) && d.mainPhoto[0]) CONFIG.mainPhoto = d.mainPhoto[0];
+  // "Memory Swipe Photos" — feeds the swipeable memories screen.
+  // Each uploaded photo keeps the default caption at the same index when
+  // one exists (so hand-written captions aren't lost), otherwise falls
+  // back to a generic "memory N" label.
   if(Array.isArray(d.memoryPhotos) && d.memoryPhotos.length){
-    CONFIG.memories = d.memoryPhotos.map((url,i)=>({photo:url, caption:'memory '+(i+1)}));
+    CONFIG.memories = d.memoryPhotos.map((url,i)=>({
+      photo: url,
+      caption: (CONFIG.memories[i] && CONFIG.memories[i].caption) || ('memory '+(i+1))
+    }));
+  }
+  // "Journey Photos" — feeds the separate "Our Journey" timeline screen.
+  // Kept as its own field/array so it never overwrites or gets confused
+  // with the Memory Swipe Photos above.
+  if(Array.isArray(d.journeyPhotos) && d.journeyPhotos.length){
+    CONFIG.journey = d.journeyPhotos.map((url,i)=>({
+      photo: url,
+      caption: (CONFIG.journey[i] && CONFIG.journey[i].caption) || ('Our journey, part '+(i+1))
+    }));
   }
   if(d.music) CONFIG.musicUrl = d.music;
 }
